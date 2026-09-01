@@ -1,0 +1,840 @@
+/* =========================================================================
+   Smart Office Breakfast — Design Tokens
+   -------------------------------------------------------------------------
+   Brief: a group-ordering tool for office breakfast runs. Subject matter is
+   restaurant tickets, receipts, kitchen order slips, and the daily ritual
+   of "who's paying what." The signature element is the perforated order
+   ticket: dotted-leader line items, monospace pricing, a torn top edge.
+   ========================================================================= */
+
+:root {
+  /* Color */
+  --coffee-950: #241811;
+  --coffee-800: #3a2a1d;
+  --kraft-100: #f2e4c9;
+  --kraft-200: #e9d7ae;
+  --paper-50: #fbf3e3;
+  --butter-400: #f5c84b;
+  --butter-500: #e8b32e;
+  --mint-500: #4f9b7b;
+  --mint-100: #dcece3;
+  --tomato-500: #e1553a;
+  --tomato-100: #fbe1db;
+  --ink-900: #241811;
+  --ink-600: #6b5a45;
+  --line-300: #d8c6a0;
+
+  /* Type */
+  --font-display: "Fraunces", "Iowan Old Style", ui-serif, serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* Layout */
+  --radius-card: 14px;
+  --shadow-ticket: 0 2px 0 var(--line-300), 0 10px 24px -12px rgba(36, 24, 17, 0.35);
+  --nav-height: 64px;
+  --header-height: 60px;
+  --max-width: 640px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--kraft-100);
+  background-image:
+    radial-gradient(var(--kraft-200) 1px, transparent 1px);
+  background-size: 18px 18px;
+  color: var(--ink-900);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-bottom: calc(var(--nav-height) + 16px);
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--coffee-950);
+  margin: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--butter-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   App shell
+   --------------------------------------------------------------------- */
+
+#app {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--header-height);
+  background: var(--coffee-950);
+  color: var(--paper-50);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  box-shadow: 0 2px 12px rgba(36, 24, 17, 0.25);
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--paper-50);
+  text-decoration: none;
+}
+
+.wordmark .dot {
+  color: var(--butter-400);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--kraft-200);
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--paper-50);
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-family: var(--font-body);
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+main {
+  padding: 20px 16px 32px;
+}
+
+/* Bottom tab bar (mobile-first nav) */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  height: var(--nav-height);
+  background: var(--paper-50);
+  border-top: 1px solid var(--line-300);
+  display: flex;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.bottom-nav button {
+  flex: 1;
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--ink-600);
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.bottom-nav button .glyph {
+  font-size: 20px;
+}
+
+.bottom-nav button.active {
+  color: var(--tomato-500);
+}
+
+.bottom-nav.hidden {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------
+   Buttons
+   --------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-weight: 700;
+  font-size: 15px;
+  font-family: var(--font-body);
+  transition: transform 0.08s ease;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: var(--butter-400);
+  color: var(--coffee-950);
+}
+
+.btn-primary:hover {
+  background: var(--butter-500);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--coffee-950);
+  color: var(--coffee-950);
+}
+
+.btn-danger {
+  background: var(--tomato-500);
+  color: var(--paper-50);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(var(--nav-height) + 16px);
+  z-index: 25;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--butter-400);
+  color: var(--coffee-950);
+  border: none;
+  font-size: 26px;
+  font-weight: 700;
+  box-shadow: 0 8px 20px -6px rgba(36, 24, 17, 0.5);
+  max-width: var(--max-width);
+}
+
+/* ---------------------------------------------------------------------
+   Forms
+   --------------------------------------------------------------------- */
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-600);
+  margin-bottom: 6px;
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1.5px solid var(--line-300);
+  border-radius: 8px;
+  background: var(--paper-50);
+  font-size: 15px;
+  font-family: var(--font-body);
+  color: var(--ink-900);
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: var(--coffee-950);
+  outline: none;
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+
+.field-row .field {
+  flex: 1;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--ink-600);
+  margin-top: 4px;
+}
+
+.error-text {
+  font-size: 13px;
+  color: var(--tomato-500);
+  font-weight: 600;
+  margin: 8px 0;
+}
+
+/* ---------------------------------------------------------------------
+   Auth view
+   --------------------------------------------------------------------- */
+
+.auth-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 24px;
+}
+
+.auth-hero {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.auth-hero .display {
+  font-size: 30px;
+}
+
+.auth-hero p {
+  color: var(--ink-600);
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.tab-switch {
+  display: flex;
+  background: var(--kraft-200);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 20px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.tab-switch button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 9px;
+  border-radius: 7px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink-600);
+}
+
+.tab-switch button.active {
+  background: var(--paper-50);
+  color: var(--coffee-950);
+  box-shadow: 0 1px 4px rgba(36, 24, 17, 0.15);
+}
+
+/* ---------------------------------------------------------------------
+   Ticket card — signature component
+   Used for: room cards, receipt/cart, invoice breakdown
+   --------------------------------------------------------------------- */
+
+.ticket {
+  position: relative;
+  background: var(--paper-50);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-ticket);
+  padding: 18px 18px 16px;
+  margin-bottom: 16px;
+}
+
+/* perforated top edge */
+.ticket::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 10px;
+  right: 10px;
+  height: 12px;
+  background-image: radial-gradient(circle at 6px 6px, var(--kraft-100) 5px, transparent 5.5px);
+  background-size: 16px 12px;
+  background-repeat: repeat-x;
+}
+
+.ticket-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.ticket-title {
+  font-size: 19px;
+}
+
+.ticket-sub {
+  color: var(--ink-600);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge-open {
+  background: var(--mint-100);
+  color: var(--mint-500);
+}
+
+.badge-closed {
+  background: var(--kraft-200);
+  color: var(--ink-600);
+}
+
+.badge-urgent {
+  background: var(--tomato-100);
+  color: var(--tomato-500);
+}
+
+.ticket-timer {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-600);
+  margin: 8px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ticket-timer.urgent {
+  color: var(--tomato-500);
+  font-weight: 700;
+}
+
+.ticket-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Dotted-leader line items, like a printed receipt */
+.leader-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line-300);
+}
+
+.leader-row:last-child {
+  border-bottom: none;
+}
+
+.leader-label {
+  font-size: 14px;
+  color: var(--ink-900);
+}
+
+.leader-label .qty {
+  color: var(--ink-600);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.leader-fill {
+  flex: 1;
+  border-bottom: 1px dotted var(--ink-600);
+  transform: translateY(-4px);
+  opacity: 0.5;
+  min-width: 12px;
+}
+
+.leader-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.leader-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 2px solid var(--coffee-950);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.stamp {
+  position: absolute;
+  top: 14px;
+  right: -8px;
+  transform: rotate(8deg);
+  border: 2px solid var(--tomato-500);
+  color: var(--tomato-500);
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  opacity: 0.85;
+}
+
+/* ---------------------------------------------------------------------
+   Section headers / misc
+   --------------------------------------------------------------------- */
+
+.section-title {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-600);
+  margin: 22px 0 10px;
+}
+
+.section-title:first-child {
+  margin-top: 0;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--ink-600);
+}
+
+.empty-state .glyph {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.empty-state .display {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.view-tabs button {
+  flex: 1;
+  border: 1.5px solid var(--line-300);
+  background: var(--paper-50);
+  border-radius: 8px;
+  padding: 9px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink-600);
+}
+
+.view-tabs button.active {
+  border-color: var(--coffee-950);
+  background: var(--coffee-950);
+  color: var(--paper-50);
+}
+
+/* Menu grid + custom item form (Active Room view) */
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.menu-chip {
+  background: var(--paper-50);
+  border: 1.5px solid var(--line-300);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: left;
+}
+
+.menu-chip .name {
+  font-weight: 700;
+  font-size: 14px;
+  display: block;
+}
+
+.menu-chip .price {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-600);
+  display: block;
+  margin-top: 2px;
+}
+
+.custom-item-form {
+  background: var(--kraft-200);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+/* Admin summary rows */
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line-300);
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+}
+
+.summary-count {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 16px;
+  background: var(--butter-400);
+  color: var(--coffee-950);
+  min-width: 34px;
+  text-align: center;
+  border-radius: 6px;
+  padding: 3px 6px;
+  margin-right: 10px;
+}
+
+/* Toast */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav-height) + 20px);
+  transform: translate(-50%, 12px);
+  background: var(--coffee-950);
+  color: var(--paper-50);
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 50;
+  max-width: 90%;
+  text-align: center;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+#toast.error {
+  background: var(--tomato-500);
+}
+
+/* Modal */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(36, 24, 17, 0.5);
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.modal-sheet {
+  background: var(--paper-50);
+  width: 100%;
+  max-width: var(--max-width);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.modal-sheet h2 {
+  font-size: 20px;
+  margin-bottom: 14px;
+}
+
+/* Loading spinner */
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--kraft-200);
+  border-top-color: var(--tomato-500);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 40px auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (min-width: 640px) {
+  #app {
+    box-shadow: 0 0 0 1px var(--line-300);
+    min-height: 100vh;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Post-delivery receipt approval workflow
+   ------------------------------------------------------------------------- */
+
+/* Awaiting the admin's sign-off: wants attention without reading as an error. */
+.badge-review {
+  background: var(--butter-400);
+  color: var(--coffee-950);
+}
+
+.badge-approved {
+  background: var(--mint-500);
+  color: var(--paper-50);
+}
+
+/* A figure nobody has confirmed yet. Deliberately muted so it never reads as
+   a real amount owed. */
+.unverified {
+  color: var(--ink-600);
+  opacity: 0.65;
+  font-style: italic;
+}
+
+/* One row per distinct ordered item on the receipt-entry and approval forms. */
+.receipt-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line-300);
+}
+
+.receipt-entry-row:last-of-type {
+  border-bottom: none;
+}
+
+.receipt-entry-row label {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-900);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.receipt-entry-row .qty {
+  color: var(--ink-600);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.receipt-entry-row input {
+  width: 108px;
+  flex-shrink: 0;
+  margin: 0;
+  text-align: right;
+  font-family: var(--font-mono);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--mint-500);
+}

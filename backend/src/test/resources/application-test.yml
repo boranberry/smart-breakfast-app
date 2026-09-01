@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:breakfast_test;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+app:
+  jwt:
+    secret: test-secret-key-that-is-long-enough-for-hmac-sha256-signing
+    expiration-ms: 3600000
+  room:
+    duration-minutes: 60
+    scheduler:
+      # Effectively disable the expiry sweep during tests.
+      fixed-rate-ms: 3600000
