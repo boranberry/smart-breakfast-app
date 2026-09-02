@@ -4,6 +4,12 @@ import com.smartoffice.breakfast.dto.BillingDtos.BillResponse;
 import com.smartoffice.breakfast.dto.ReceiptDtos.ReceiptDraftResponse;
 import com.smartoffice.breakfast.dto.ReceiptDtos.ReceiptEntryRequest;
 import com.smartoffice.breakfast.service.BillingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +19,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
+@Tag(name = "Billing", description = "Receipt entry and bill calculation endpoints")
+@SecurityRequirement(name = "bearerAuth")
 public class BillingController {
 
     private final BillingService billingService;
@@ -24,7 +32,14 @@ public class BillingController {
      */
     @PostMapping("/{roomId}/receipt")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ReceiptDraftResponse> enterReceipt(@PathVariable Long roomId,
+    @Operation(summary = "Enter receipt details", description = "Posts real per-item prices and delivery fee from the paper receipt. Splits the bill and moves room to PENDING_ADMIN_APPROVAL.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Receipt entered successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request data"),
+            @ApiResponse(responseCode = "403", description = "Access denied - Admin only"),
+            @ApiResponse(responseCode = "404", description = "Room not found")
+    })
+    public ResponseEntity<ReceiptDraftResponse> enterReceipt(@Parameter(description = "Room ID") @PathVariable Long roomId,
                                                              @Valid @RequestBody ReceiptEntryRequest request) {
         return ResponseEntity.ok(billingService.enterReceipt(roomId, request));
     }
@@ -36,8 +51,14 @@ public class BillingController {
      */
     @PostMapping("/{roomId}/calculate-bill")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BillResponse> calculateBill(@PathVariable Long roomId,
-                                                       @RequestParam Double totalDelivery) {
+    @Operation(summary = "Calculate bill with delivery fee", description = "Shortcut for rooms where user-entered prices match the receipt. Only requires the delivery fee.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Bill calculated successfully"),
+            @ApiResponse(responseCode = "403", description = "Access denied - Admin only"),
+            @ApiResponse(responseCode = "404", description = "Room not found")
+    })
+    public ResponseEntity<BillResponse> calculateBill(@Parameter(description = "Room ID") @PathVariable Long roomId,
+                                                       @Parameter(description = "Total delivery fee") @RequestParam Double totalDelivery) {
         return ResponseEntity.ok(billingService.calculateBill(roomId, totalDelivery));
     }
 }

@@ -59,7 +59,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/health","/swagger-ui/**","/swagger-ui.html","/v3/api-docs","/v3/api-docs/**").permitAll()
 
                         // Frontend static assets (served from src/main/resources/static)
                         .requestMatchers("/", "/index.html", "/favicon.ico",

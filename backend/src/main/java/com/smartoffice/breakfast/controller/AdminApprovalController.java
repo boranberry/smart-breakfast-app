@@ -8,6 +8,12 @@ import com.smartoffice.breakfast.security.UserPrincipal;
 import com.smartoffice.breakfast.service.AdminApprovalService;
 import com.smartoffice.breakfast.service.BillingService;
 import com.smartoffice.breakfast.service.RoomService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +34,8 @@ import java.util.List;
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "Admin Approval", description = "Admin-only post-delivery approval workflow endpoints")
+@SecurityRequirement(name = "bearerAuth")
 public class AdminApprovalController {
 
     private final AdminApprovalService adminApprovalService;
@@ -39,12 +47,20 @@ public class AdminApprovalController {
      * not yet signed off.
      */
     @GetMapping("/rooms/pending-approval")
+    @Operation(summary = "List rooms pending approval", description = "Retrieves rooms whose receipt has been entered but not yet approved")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pending rooms retrieved successfully")
+    })
     public ResponseEntity<List<RoomResponse>> listPendingApproval() {
         return ResponseEntity.ok(adminApprovalService.getRoomsAwaitingApproval());
     }
 
     /** Rooms the admin still owes something on: closed, or awaiting approval. */
     @GetMapping("/rooms/unapproved")
+    @Operation(summary = "List unapproved rooms", description = "Retrieves rooms that are closed or awaiting approval")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Unapproved rooms retrieved successfully")
+    })
     public ResponseEntity<List<RoomResponse>> listUnapproved() {
         return ResponseEntity.ok(roomService.getUnapprovedRooms());
     }
@@ -54,8 +70,13 @@ public class AdminApprovalController {
      * before committing. Read-only: does not advance the room's status.
      */
     @GetMapping("/rooms/{roomId}/bill-preview")
-    public ResponseEntity<BillResponse> previewBill(@PathVariable Long roomId,
-                                                    @RequestParam(required = false) Double totalDelivery) {
+    @Operation(summary = "Preview bill", description = "Previews the bill split before final approval. Read-only operation.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Bill preview retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Room not found")
+    })
+    public ResponseEntity<BillResponse> previewBill(@Parameter(description = "Room ID") @PathVariable Long roomId,
+                                                    @Parameter(description = "Total delivery fee") @RequestParam(required = false) Double totalDelivery) {
         return ResponseEntity.ok(billingService.previewBill(roomId, totalDelivery));
     }
 
@@ -64,7 +85,13 @@ public class AdminApprovalController {
      * prices into the restaurant's menu, and close the room for good.
      */
     @PostMapping("/rooms/{roomId}/approve")
-    public ResponseEntity<ApprovalResponse> approve(@PathVariable Long roomId,
+    @Operation(summary = "Approve room receipt", description = "Approves the finalized receipt, confirms splits, writes verified prices to restaurant menu, and closes the room")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Room approved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request data"),
+            @ApiResponse(responseCode = "404", description = "Room not found")
+    })
+    public ResponseEntity<ApprovalResponse> approve(@Parameter(description = "Room ID") @PathVariable Long roomId,
                                                     @Valid @RequestBody ApproveReceiptRequest request,
                                                     @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(adminApprovalService.approveRoom(roomId, request, principal.getUser()));
