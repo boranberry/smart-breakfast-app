@@ -39,7 +39,7 @@ public class RoomController {
             @ApiResponse(responseCode = "403", description = "Access denied - Admin only")
     })
     public ResponseEntity<RoomResponse> createRoom(@Valid @RequestBody CreateRoomRequest request,
-                                                    @AuthenticationPrincipal UserPrincipal principal) {
+                                                   @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(roomService.createRoom(request, principal.getUser()));
     }
@@ -56,6 +56,22 @@ public class RoomController {
             return ResponseEntity.ok(roomService.getAllRooms());
         }
         return ResponseEntity.ok(roomService.getOpenRooms());
+    }
+
+    /**
+     * Any authenticated user: their own room history for the Account screen —
+     * only rooms they actually placed an order in, any status. This is what
+     * lets a user reach their split/final bill (via GET /rooms/{id} +
+     * /rooms/{id}/bill/me) after a room they ordered in has closed, without
+     * exposing every other user's room history the way status=all would.
+     */
+    @GetMapping("/mine")
+    @Operation(summary = "List my rooms", description = "Retrieves rooms the current user has placed at least one order in, most recent first")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Rooms retrieved successfully")
+    })
+    public ResponseEntity<List<RoomResponse>> listMyRooms(@AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(roomService.getMyRooms(principal.getUser().getId()));
     }
 
     @GetMapping("/{roomId}")

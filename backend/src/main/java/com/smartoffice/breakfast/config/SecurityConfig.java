@@ -1,11 +1,17 @@
 package com.smartoffice.breakfast.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.smartoffice.breakfast.dto.ErrorResponse;
 import com.smartoffice.breakfast.security.CustomUserDetailsService;
 import com.smartoffice.breakfast.security.JwtAuthFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -15,12 +21,15 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Configuration
@@ -50,12 +59,72 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+    /**
+     * Fires for anyone who is NOT authenticated at all: no token, a malformed
+     * token, an expired token, or a token for a user that no longer exists.
+     * Without this bean, Spring Security's default {@code Http403ForbiddenEntryPoint}
+     * answers every one of those cases with a bare 403 and no body — which is
+     * indistinguishable, from the frontend's point of view, from "you're
+     * logged in but not allowed to do this". That is what caused stale
+     * sessions to spin forever instead of bouncing the user back to login:
+     * api.js only clears localStorage on a 401.
+     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public AuthenticationEntryPoint authenticationEntryPoint(ObjectMapper securityObjectMapper) {
+        return (request, response, authException) -> writeError(
+                response, HttpStatus.UNAUTHORIZED,
+                "Authentication required or your session has expired. Please log in again.",
+                securityObjectMapper);
+    }
+
+    /**
+     * Fires when the caller IS authenticated but lacks the role/permission
+     * for the endpoint (e.g. a USER hitting an ADMIN-only route). Kept
+     * distinct from the entry point above so 403 keeps meaning exactly one
+     * thing: "you're logged in, but not allowed to do this."
+     */
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler(ObjectMapper securityObjectMapper) {
+        return (request, response, accessDeniedException) -> writeError(
+                response, HttpStatus.FORBIDDEN,
+                "You do not have permission to perform this action",
+                securityObjectMapper);
+    }
+
+    /** Jackson instance for the security layer, which runs outside Spring MVC's message converters. */
+    @Bean
+    public ObjectMapper securityObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        return mapper;
+    }
+
+    private static void writeError(HttpServletResponse response, HttpStatus status, String message,
+                                    ObjectMapper mapper) throws java.io.IOException {
+        ErrorResponse body = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(message)
+                .build();
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(mapper.writeValueAsString(body));
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                     AuthenticationEntryPoint authenticationEntryPoint,
+                                                     AccessDeniedHandler accessDeniedHandler) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()

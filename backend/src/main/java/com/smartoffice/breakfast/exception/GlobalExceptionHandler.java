@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -50,6 +51,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return build(HttpStatus.FORBIDDEN, "You do not have permission to perform this action", null);
+    }
+
+    /**
+     * Safety net: this normally never fires, because JwtAuthFilter never lets an
+     * AuthenticationException escape into the DispatcherServlet — unauthenticated
+     * requests are caught by the AuthenticationEntryPoint configured in
+     * SecurityConfig instead (see the "why 401 not 403" note there). This handler
+     * only guards against some future @Controller/@Service code path that throws
+     * one directly (e.g. a manual AuthenticationManager.authenticate() call), so
+     * it fails safe as 401 rather than falling through to the generic 500 handler.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex) {
+        return build(HttpStatus.UNAUTHORIZED, "Authentication required or your session has expired. Please log in again.", null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

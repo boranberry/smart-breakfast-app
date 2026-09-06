@@ -219,6 +219,61 @@ public class BillingService {
         return computeBill(room, orders, totalDelivery);
     }
 
+    /**
+     * A single user's own split — the fix for the reported bug: previously
+     * there was no way for a non-admin to reach any bill-computing endpoint
+     * at all (every one of them was {@code hasRole('ADMIN')}), so a regular
+     * user's screen had nothing to fetch and just kept showing stale
+     * unverified cart totals after the admin split the bill.
+     *
+     * Deliberately returns only the caller's own line, not the full
+     * {@link BillResponse#getBreakdown()} — a participant should be able to
+     * see what they personally owe without also seeing every other
+     * participant's name and amount.
+     */
+    @Transactional(readOnly = true)
+    public com.smartoffice.breakfast.dto.BillingDtos.MyBillResponse getMyBill(Long roomId, Long userId) {
+        BillResponse bill = previewBill(roomId, null);
+
+        UserBillResponse mine = bill.getBreakdown().stream()
+                .filter(row -> row.getUserId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "You don't have any orders in this room, so there is nothing to bill you for"));
+
+        return com.smartoffice.breakfast.dto.BillingDtos.MyBillResponse.builder()
+                .roomId(bill.getRoomId())
+                .restaurantName(bill.getRestaurantName())
+                .roomStatus(bill.getRoomStatus())
+                .pricesVerified(bill.getPricesVerified())
+                .participantCount(bill.getParticipantCount())
+                .deliverySharePerPerson(bill.getDeliverySharePerPerson())
+                .foodSubtotal(mine.getFoodSubtotal())
+                .deliveryShare(mine.getDeliveryShare())
+                .finalTotal(mine.getFinalTotal())
+                .build();
+    }
+
+    /**
+     * The full split, same shape the admin sees, but for a regular
+     * participant. Gated on the caller actually appearing in the breakdown
+     * (i.e. having ordered in this room) so a random authenticated user can't
+     * page through other rooms' names and amounts just by guessing a roomId.
+     */
+    @Transactional(readOnly = true)
+    public BillResponse getBillForParticipant(Long roomId, Long userId) {
+        BillResponse bill = previewBill(roomId, null);
+
+        boolean isParticipant = bill.getBreakdown().stream()
+                .anyMatch(row -> row.getUserId().equals(userId));
+        if (!isParticipant) {
+            throw new ResourceNotFoundException(
+                    "You don't have any orders in this room, so there is nothing to show you");
+        }
+
+        return bill;
+    }
+
     List<LiveOrder> requireOrders(Long roomId) {
         List<LiveOrder> orders = liveOrderRepository.findByRoomId(roomId);
         if (orders.isEmpty()) {
