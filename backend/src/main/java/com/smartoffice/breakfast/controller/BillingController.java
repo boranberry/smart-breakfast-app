@@ -1,8 +1,10 @@
 package com.smartoffice.breakfast.controller;
 
 import com.smartoffice.breakfast.dto.BillingDtos.BillResponse;
+import com.smartoffice.breakfast.dto.BillingDtos.MyBillResponse;
 import com.smartoffice.breakfast.dto.ReceiptDtos.ReceiptDraftResponse;
 import com.smartoffice.breakfast.dto.ReceiptDtos.ReceiptEntryRequest;
+import com.smartoffice.breakfast.security.UserPrincipal;
 import com.smartoffice.breakfast.service.BillingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -60,5 +63,48 @@ public class BillingController {
     public ResponseEntity<BillResponse> calculateBill(@Parameter(description = "Room ID") @PathVariable Long roomId,
                                                        @Parameter(description = "Total delivery fee") @RequestParam Double totalDelivery) {
         return ResponseEntity.ok(billingService.calculateBill(roomId, totalDelivery));
+    }
+
+    /**
+     * Bug fix: previously every bill-computing endpoint was ADMIN-only, so a
+     * regular user's own room screen had nothing it could call once the admin
+     * split the bill — it just kept showing the unverified cart total forever.
+     * This endpoint is intentionally open to any authenticated user (no
+     * {@code @PreAuthorize}, and not under {@code /api/admin/**}) but only
+     * ever returns the caller's own line from the split, never anyone else's.
+     * Works as soon as a split exists — including the PENDING_ADMIN_APPROVAL
+     * preview stage, not just after final APPROVED_AND_CLOSED approval — so
+     * the amount appears the moment the admin enters the receipt, not only
+     * after they approve it.
+     */
+    @GetMapping("/{roomId}/bill/me")
+    @Operation(summary = "Get my split for a room", description = "Retrieves the authenticated user's own food subtotal, delivery share, and final total for a room. Available to any participant, not admin-only.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Bill retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Room has no orders yet"),
+            @ApiResponse(responseCode = "404", description = "Room not found, or you have no orders in this room")
+    })
+    public ResponseEntity<MyBillResponse> getMyBill(@Parameter(description = "Room ID") @PathVariable Long roomId,
+                                                     @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(billingService.getMyBill(roomId, principal.getUser().getId()));
+    }
+
+    /**
+     * Full split, everyone's name and amount included — for a "here's how it
+     * was divided" screen. Open to any authenticated user (not admin-only),
+     * but {@link BillingService#getBillForParticipant} refuses anyone who
+     * isn't themselves a participant in this room, so it can't be used to
+     * browse other rooms' bills.
+     */
+    @GetMapping("/{roomId}/bill")
+    @Operation(summary = "Get the full split for a room", description = "Retrieves every participant's food subtotal, delivery share, and final total for a room. Available to any participant who ordered in the room, not admin-only.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Bill retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Room has no orders yet"),
+            @ApiResponse(responseCode = "404", description = "Room not found, or you have no orders in this room")
+    })
+    public ResponseEntity<BillResponse> getFullBill(@Parameter(description = "Room ID") @PathVariable Long roomId,
+                                                     @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(billingService.getBillForParticipant(roomId, principal.getUser().getId()));
     }
 }

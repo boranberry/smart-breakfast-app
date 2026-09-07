@@ -46,4 +46,26 @@ public class BillingDtos {
          */
         private Boolean pricesVerified;
     }
+
+    /**
+     * A single participant's own split, for the "what do I owe" screen.
+     * Deliberately narrower than {@link BillResponse}: it never includes
+     * other participants' names or amounts, only room-level context plus the
+     * calling user's own numbers.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MyBillResponse {
+        private Long roomId;
+        private String restaurantName;
+        private RoomStatus roomStatus;
+        private Boolean pricesVerified;
+        private Integer participantCount;
+        private Double deliverySharePerPerson;
+        private Double foodSubtotal;
+        private Double deliveryShare;
+        private Double finalTotal;
+    }
 }

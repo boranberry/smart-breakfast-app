@@ -83,6 +83,20 @@ public class RoomService {
                 .toList();
     }
 
+    /**
+     * A single user's own room history — only rooms they actually placed an
+     * order in, so a room they never joined (or only glanced at) doesn't show
+     * up on their Account screen. Used to surface the split/final bill once a
+     * room leaves OPEN, since the shared dashboard only ever lists open rooms.
+     */
+    @Transactional(readOnly = true)
+    public List<RoomResponse> getMyRooms(Long userId) {
+        return roomRepository.findRoomsOrderedInByUserId(userId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     /** Rooms that still need admin attention: closed but not yet approved. */
     @Transactional(readOnly = true)
     public List<RoomResponse> getUnapprovedRooms() {
