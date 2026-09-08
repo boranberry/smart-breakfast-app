@@ -1,5 +1,7 @@
 package com.smartoffice.breakfast.controller;
 
+import com.smartoffice.breakfast.dto.UserAdminDtos.BulkPromoteAllRequest;
+import com.smartoffice.breakfast.dto.UserAdminDtos.BulkPromoteAllResponse;
 import com.smartoffice.breakfast.dto.UserAdminDtos.UserResponse;
 import com.smartoffice.breakfast.security.UserPrincipal;
 import com.smartoffice.breakfast.service.UserAdminService;
@@ -9,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +19,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -77,7 +81,32 @@ public class UserAdminController {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     public ResponseEntity<UserResponse> demoteToUser(@Parameter(description = "User ID") @PathVariable Long userId,
-                                                      @AuthenticationPrincipal UserPrincipal principal) {
+                                                     @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(userAdminService.demoteToUser(userId, principal.getUser().getId()));
+    }
+
+    /**
+     * Promotes every non-admin user to ADMIN in one shot. Deliberately the
+     * most locked-down endpoint in this controller:
+     *  - class-level {@code @PreAuthorize("hasRole('ADMIN')")} plus the
+     *    {@code /api/admin/**} URL-level rule in SecurityConfig, same as
+     *    every other method here;
+     *  - additionally requires an exact "CONFIRM" phrase in the request body
+     *    (validated in the service), so it can't be triggered by an empty
+     *    POST alone;
+     *  - the acting admin's own row is excluded at the SQL level, and
+     *    existing admins are left untouched;
+     *  - every call is logged server-side at WARN with the admin's id and a
+     *    timestamp for audit purposes (see UserAdminService).
+     */
+    @PostMapping("/make-all-admin")
+    @Operation(summary = "Promote all users to admin", description = "Bulk-promotes every non-admin user to ADMIN. Requires an exact \"CONFIRM\" phrase in the body. Admin-only, and logged for audit.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Bulk promotion completed"),
+            @ApiResponse(responseCode = "400", description = "Missing or incorrect confirmation phrase")
+    })
+    public ResponseEntity<BulkPromoteAllResponse> makeAllUsersAdmin(@Valid @RequestBody BulkPromoteAllRequest request,
+                                                                    @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(userAdminService.bulkPromoteAllToAdmin(principal.getUser().getId(), request.getConfirmation()));
     }
 }

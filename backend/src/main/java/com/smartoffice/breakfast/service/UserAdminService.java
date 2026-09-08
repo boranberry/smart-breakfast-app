@@ -1,5 +1,6 @@
 package com.smartoffice.breakfast.service;
 
+import com.smartoffice.breakfast.dto.UserAdminDtos.BulkPromoteAllResponse;
 import com.smartoffice.breakfast.dto.UserAdminDtos.UserResponse;
 import com.smartoffice.breakfast.entity.Role;
 import com.smartoffice.breakfast.entity.User;
@@ -7,9 +8,12 @@ import com.smartoffice.breakfast.exception.BadRequestException;
 import com.smartoffice.breakfast.exception.ResourceNotFoundException;
 import com.smartoffice.breakfast.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -21,7 +25,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserAdminService {
 
+    private static final Logger log = LoggerFactory.getLogger(UserAdminService.class);
+
+    /** Must be typed exactly (case-sensitive) to authorize a bulk promote-all. */
+    private static final String BULK_PROMOTE_CONFIRMATION_PHRASE = "CONFIRM";
+
     private final UserRepository userRepository;
+
 
     /** Every registered user, for the admin's "make someone an admin" screen. */
     @Transactional(readOnly = true)
@@ -69,6 +79,54 @@ public class UserAdminService {
         }
 
         return toResponse(user);
+    }
+
+    /**
+     * Promotes every non-admin user to ADMIN in one bulk operation.
+     *
+     * Safety measures (in order):
+     *  1. Confirmation phrase must match exactly — a second line of defence
+     *     behind the frontend's "type CONFIRM" modal, in case this endpoint
+     *     is ever called directly.
+     *  2. The acting admin's own account is excluded at the SQL level (see
+     *     {@link UserRepository#promoteAllUsersToAdmin}), so this can never
+     *     touch the caller's own row — irrelevant to role escalation since
+     *     they're already an admin, but it keeps the audit trail honest
+     *     ("promoted N *other* users") and avoids a pointless UPDATE.
+     *  3. Only rows currently {@code role <> ADMIN} are touched, so existing
+     *     admins are left completely alone.
+     *  4. This app has no super-admin flag or disabled/locked account state
+     *     today (see {@link com.smartoffice.breakfast.security.UserPrincipal},
+     *     whose isEnabled()/isAccountNonLocked() are hard-coded true) — so
+     *     there is nothing further to exclude on that front yet. If those
+     *     fields are added later, they belong in the WHERE clause of
+     *     {@code promoteAllUsersToAdmin} right alongside the id exclusion.
+     *  5. Every call is logged at WARN so it stands out in the server logs,
+     *     with the acting admin's id, a timestamp, and the resulting count —
+     *     this is a privilege-escalation action and should always be
+     *     auditable after the fact.
+     */
+    @Transactional
+    public BulkPromoteAllResponse bulkPromoteAllToAdmin(Long actingAdminId, String confirmation) {
+        if (confirmation == null || !BULK_PROMOTE_CONFIRMATION_PHRASE.equals(confirmation.trim())) {
+            throw new BadRequestException("Confirmation phrase does not match. Type CONFIRM exactly to proceed.");
+        }
+
+        long totalUsers = userRepository.count();
+        int promotedCount = userRepository.promoteAllUsersToAdmin(actingAdminId);
+
+        // SECURITY AUDIT LOG: privilege escalation of every eligible account.
+        log.warn("SECURITY AUDIT: admin id={} bulk-promoted {} user(s) to ADMIN at {}",
+                actingAdminId, promotedCount, LocalDateTime.now());
+
+        return BulkPromoteAllResponse.builder()
+                .promotedCount(promotedCount)
+                .alreadyAdminCount((int) (totalUsers - promotedCount))
+                .totalUsers((int) totalUsers)
+                .message(promotedCount == 0
+                        ? "No eligible users to promote — everyone else is already an admin."
+                        : promotedCount + " user(s) promoted to ADMIN.")
+                .build();
     }
 
     private UserResponse toResponse(User user) {

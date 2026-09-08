@@ -130,6 +130,7 @@ const Api = {
   listUsers: () => request("GET", "/admin/users"),
   promoteUser: (userId) => request("POST", `/admin/users/${userId}/promote`),
   demoteUser: (userId) => request("POST", `/admin/users/${userId}/demote`),
+  makeAllUsersAdmin: (confirmation) => request("POST", "/admin/users/make-all-admin", { confirmation }),
 
   // --- Billing / post-delivery receipt entry (ADMIN) ---
   // payload: { items: [{ name, verifiedPrice }], totalDelivery, receiptTotal }
