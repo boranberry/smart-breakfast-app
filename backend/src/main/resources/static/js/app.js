@@ -439,6 +439,24 @@ async function renderUsersPanel() {
       </div>`;
       })
       .join("")}
+
+    <div class="ticket" style="margin-top:18px;border-color:var(--danger, #c0392b)">
+      <div class="ticket-title" style="font-size:15px">Danger zone</div>
+      <div class="ticket-sub" style="margin:4px 0 10px">
+        Promote every other user to ADMIN in one go. This can't be undone with a single click afterwards — you'd have to demote each account one by one.
+      </div>
+      <button class="btn btn-danger btn-block" id="make-all-admin-btn">Make ALL users admin</button>
+      <div id="make-all-admin-confirm" style="display:none;margin-top:12px">
+        <div class="hint" style="margin-bottom:8px">
+          This upgrades <strong>every user except you</strong> to ADMIN, immediately, for the whole app. Type <strong>CONFIRM</strong> below to proceed.
+        </div>
+        <input id="make-all-admin-input" type="text" placeholder="Type CONFIRM" autocomplete="off" style="margin-bottom:10px" />
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-danger" id="make-all-admin-submit" disabled style="flex:1">Confirm &amp; promote all</button>
+          <button class="btn btn-outline" id="make-all-admin-cancel" style="flex:1">Cancel</button>
+        </div>
+      </div>
+    </div>
   `;
 
   const errEl = document.getElementById("users-error");
@@ -471,6 +489,47 @@ async function renderUsersPanel() {
         showErr(err.message);
       }
     });
+  });
+
+  // "Make ALL users admin" — deliberately friction-heavy: reveal an inline
+  // confirm panel first, and keep the final button disabled until the admin
+  // has typed the exact word CONFIRM, so a stray click can't fire this.
+  const makeAllBtn = document.getElementById("make-all-admin-btn");
+  const confirmPanel = document.getElementById("make-all-admin-confirm");
+  const confirmInput = document.getElementById("make-all-admin-input");
+  const confirmSubmit = document.getElementById("make-all-admin-submit");
+  const confirmCancel = document.getElementById("make-all-admin-cancel");
+
+  makeAllBtn.addEventListener("click", () => {
+    confirmPanel.style.display = "block";
+    makeAllBtn.style.display = "none";
+    confirmInput.value = "";
+    confirmSubmit.disabled = true;
+    confirmInput.focus();
+  });
+
+  confirmCancel.addEventListener("click", () => {
+    confirmPanel.style.display = "none";
+    makeAllBtn.style.display = "block";
+  });
+
+  confirmInput.addEventListener("input", () => {
+    confirmSubmit.disabled = confirmInput.value.trim() !== "CONFIRM";
+  });
+
+  confirmSubmit.addEventListener("click", async () => {
+    errEl.style.display = "none";
+    confirmSubmit.disabled = true;
+    confirmSubmit.textContent = "Promoting…";
+    try {
+      const result = await Api.makeAllUsersAdmin(confirmInput.value.trim());
+      toast(result.message || `${result.promotedCount} user(s) promoted to admin.`);
+      renderUsersPanel();
+    } catch (err) {
+      showErr(err.message);
+      confirmSubmit.disabled = false;
+      confirmSubmit.textContent = "Confirm & promote all";
+    }
   });
 }
 
