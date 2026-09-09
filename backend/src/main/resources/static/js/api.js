@@ -82,10 +82,42 @@ async function request(method, path, body, opts = {}) {
       }
     }
     const message = (data && data.message) || `Request failed (${res.status})`;
+
+    // Generic, page-wide feedback for the three error classes almost every
+    // screen in the app can hit: 400 (bad request / a business-rule
+    // validation failed, e.g. splitting an already-approved room), 403
+    // (logged in but not allowed to do this, e.g. no orders of your own in
+    // this room), and 409 (conflict, e.g. the room's status changed under
+    // you). This runs for EVERY call site automatically, so a screen can no
+    // longer fail silently on one of these codes just because a particular
+    // catch block forgot to surface the message. Individual call sites can
+    // still catch the thrown ApiError below to do extra, situation-specific
+    // handling (inline field errors, re-enabling a button, etc.) on top of
+    // this notification - the two aren't mutually exclusive.
+    if (!opts.silent && (res.status === 400 || res.status === 403 || res.status === 409)) {
+      notifyError(message);
+    }
+
     throw new ApiError(message, res.status, data && data.fieldErrors);
   }
 
   return data;
+}
+
+// Self-contained so this fires even if app.js's own toast() isn't available
+// yet for some reason (e.g. api.js reused on a page without it). Prefers
+// app.js's existing #toast element/styling when present, for a consistent
+// look with the rest of the UI, and otherwise falls back to a plain alert.
+function notifyError(message) {
+  const el = document.getElementById("toast");
+  if (el) {
+    el.textContent = message;
+    el.className = "show error";
+    clearTimeout(notifyError._t);
+    notifyError._t = setTimeout(() => (el.className = ""), 3200);
+  } else if (typeof window.alert === "function") {
+    window.alert(message);
+  }
 }
 
 const Api = {

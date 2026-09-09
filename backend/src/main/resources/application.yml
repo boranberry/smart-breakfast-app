@@ -1,9 +1,23 @@
 server:
   port: 8080
+  # Caps the raw request body Tomcat will read before rejecting it — a basic
+  # guard against oversized-payload abuse of the JSON endpoints (no upload
+  # endpoints exist in this app, so this is the only body-size knob needed).
+  tomcat:
+    max-swallow-size: 2MB
+    max-http-form-post-size: 2MB
 
 spring:
   application:
     name: smart-breakfast-backend
+  mvc:
+    # Lets Spring raise NoHandlerFoundException for unmapped URLs instead of
+    # delegating straight to the servlet container's own 404 page, so unknown
+    # routes get the same structured ErrorResponse JSON as every other error.
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: true
 
   # --- Choose ONE datasource block ---
 
@@ -38,6 +52,14 @@ app:
     # In production, set JWT_SECRET as an environment variable (min 256-bit / 32+ char random string)
     secret: ${JWT_SECRET:change-this-super-secret-key-to-something-long-and-random-in-production}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
+  cors:
+    # Comma-separated allow-list of origins permitted to call the API with
+    # credentials (see SecurityConfig#corsConfigurationSource). No wildcard
+    # here on purpose - combined with allowCredentials(true), "*" would let
+    # any site ride a logged-in user's session. Override CORS_ALLOWED_ORIGINS
+    # in the environment for staging/production, e.g.:
+    #   CORS_ALLOWED_ORIGINS=https://breakfast.example.com,https://admin.breakfast.example.com
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8080}
   room:
     duration-minutes: 60
     scheduler:

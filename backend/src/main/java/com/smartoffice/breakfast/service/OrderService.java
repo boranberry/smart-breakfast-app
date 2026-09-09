@@ -38,7 +38,7 @@ public class OrderService {
         LiveOrder order = LiveOrder.builder()
                 .room(room)
                 .user(user)
-                .itemName(request.getItemName())
+                .itemName(request.getItemName().trim())
                 // Stored as 0.0 rather than null so the running subtotal stays
                 // arithmetic; effectiveUnitPrice() treats it the same either way.
                 .priceAtOrder(request.getPrice() == null ? 0.0 : request.getPrice())

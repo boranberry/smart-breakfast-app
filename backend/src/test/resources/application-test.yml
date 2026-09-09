@@ -13,6 +13,12 @@ app:
   jwt:
     secret: test-secret-key-that-is-long-enough-for-hmac-sha256-signing
     expiration-ms: 3600000
+  cors:
+    # SecurityConfig now requires app.cors.allowed-origins to be present;
+    # application.yml already defaults it to http://localhost:8080, but this
+    # is set explicitly here too so the test context never depends on that
+    # default silently staying in sync.
+    allowed-origins: http://localhost:8080
   room:
     duration-minutes: 60
     scheduler:

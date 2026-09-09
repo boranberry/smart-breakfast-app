@@ -1,8 +1,10 @@
 package com.smartoffice.breakfast.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,6 +25,7 @@ import java.util.List;
 public class ApproveReceiptRequest {
 
     @NotEmpty(message = "At least one receipt item is required")
+    @Size(max = 200, message = "At most 200 receipt items per request")
     @Valid
     private List<MenuItemDto> items;
 
@@ -31,6 +34,7 @@ public class ApproveReceiptRequest {
      * at the receipt-entry step is reused.
      */
     @PositiveOrZero(message = "Delivery fee cannot be negative")
+    @DecimalMax(value = "10000", message = "Delivery fee is unrealistically high")
     private Double totalDelivery;
 
     /**
@@ -38,6 +42,7 @@ public class ApproveReceiptRequest {
      * alongside the room so the computed total can be reconciled against it.
      */
     @PositiveOrZero(message = "Receipt total cannot be negative")
+    @DecimalMax(value = "1000000", message = "Receipt total is unrealistically high")
     private Double receiptTotal;
 
     /**

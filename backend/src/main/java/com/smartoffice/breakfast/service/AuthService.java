@@ -21,13 +21,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByPhone(request.getPhone())) {
+        // Trim before both the uniqueness check and the save: otherwise
+        // "0123456789" and " 0123456789 " would be treated as different
+        // accounts by existsByPhone/save but the same account by anyone
+        // reading the column back, and a trailing-space phone would be
+        // impossible to log back into from a form that trims on the way in.
+        String name = request.getName().trim();
+        String phone = request.getPhone().trim();
+
+        if (userRepository.existsByPhone(phone)) {
             throw new DuplicateResourceException("A user with this phone number already exists");
         }
 
@@ -36,9 +43,9 @@ public class AuthService {
         Role role = userRepository.count() == 0 ? Role.ADMIN : Role.USER;
 
         User user = User.builder()
-                .name(request.getName())
-                .phone(request.getPhone())
-                .password(passwordEncoder.encode(request.getPassword()))
+                .name(name)
+                .phone(phone)
+                .password(request.getPassword())
                 .role(role)
                 .build();
 
@@ -56,14 +63,15 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+        String phone = request.getPhone().trim();
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getPhone(), request.getPassword()));
+                    new UsernamePasswordAuthenticationToken(phone, request.getPassword()));
         } catch (org.springframework.security.core.AuthenticationException ex) {
             throw new BadCredentialsException("Invalid phone or password");
         }
 
-        User user = userRepository.findByPhone(request.getPhone())
+        User user = userRepository.findByPhone(phone)
                 .orElseThrow(() -> new BadCredentialsException("Invalid phone or password"));
 
         String token = jwtUtil.generateToken(user.getId(), user.getPhone(), user.getRole().name());

@@ -76,7 +76,7 @@ public class RestaurantController {
             @ApiResponse(responseCode = "409", description = "Another restaurant already uses that name")
     })
     public ResponseEntity<RestaurantResponse> updateRestaurant(@PathVariable Long restaurantId,
-                                                                @RequestBody UpdateRestaurantRequest request) {
+                                                               @Valid @RequestBody UpdateRestaurantRequest request) {
         return ResponseEntity.ok(restaurantService.updateRestaurant(restaurantId, request));
     }
 
@@ -94,7 +94,7 @@ public class RestaurantController {
             @ApiResponse(responseCode = "404", description = "Restaurant not found")
     })
     public ResponseEntity<MenuItemDto> upsertMenuItem(@PathVariable Long restaurantId,
-                                                       @Valid @RequestBody UpsertMenuItemRequest request) {
+                                                      @Valid @RequestBody UpsertMenuItemRequest request) {
         return ResponseEntity.ok(restaurantService.upsertMenuItem(restaurantId, request));
     }
 

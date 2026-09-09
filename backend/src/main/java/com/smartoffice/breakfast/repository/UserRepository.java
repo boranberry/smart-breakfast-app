@@ -1,5 +1,6 @@
 package com.smartoffice.breakfast.repository;
 
+import com.smartoffice.breakfast.entity.Role;
 import com.smartoffice.breakfast.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -13,6 +14,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByPhone(String phone);
     boolean existsByPhone(String phone);
     List<User> findAllByOrderByNameAsc();
+
+    /**
+     * Used by {@code UserAdminService#demoteToUser} to refuse a demotion that
+     * would leave the system with zero admins. Counted fresh from the
+     * database (not off a cached list) so it stays correct even under
+     * concurrent admin actions.
+     */
+    long countByRole(Role role);
 
     /**
      * Bulk-promotes every non-admin user to ADMIN in a single UPDATE

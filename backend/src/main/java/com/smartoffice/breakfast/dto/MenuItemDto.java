@@ -1,8 +1,10 @@
 package com.smartoffice.breakfast.dto;
 
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,11 +27,14 @@ public class MenuItemDto {
     /** Null on the way in (the item may not exist yet), populated on the way out. */
     private Long id;
 
+    // Matches MenuItem.name's column length (150).
     @NotBlank(message = "Item name is required")
+    @Size(max = 150, message = "Item name must be at most 150 characters")
     private String name;
 
     @NotNull(message = "Verified price is required")
     @PositiveOrZero(message = "Verified price cannot be negative")
+    @DecimalMax(value = "100000", message = "Verified price is unrealistically high")
     private Double verifiedPrice;
 
     private LocalDateTime lastVerifiedAt;

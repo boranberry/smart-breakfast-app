@@ -14,6 +14,7 @@ import com.smartoffice.breakfast.exception.ResourceNotFoundException;
 import com.smartoffice.breakfast.repository.LiveOrderRepository;
 import com.smartoffice.breakfast.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -140,6 +141,15 @@ public class BillingService {
             throw new BadRequestException("totalDelivery must be a non-negative number");
         }
 
+        // Guards the deliveryShare division below: n (distinct participants)
+        // is normally guaranteed to be >= 1 because every caller of this
+        // method routes through requireOrders() first, but computeBill is
+        // public and reused (admin preview, participant views), so this stays
+        // as an explicit, defensive check rather than relying on the caller.
+        if (orders == null || orders.isEmpty()) {
+            throw new BadRequestException("Cannot calculate a bill for a room with no orders");
+        }
+
         Map<Long, List<LiveOrder>> ordersByUser = orders.stream()
                 .collect(Collectors.groupingBy(o -> o.getUser().getId(), LinkedHashMap::new, Collectors.toList()));
         int n = ordersByUser.size();
@@ -230,6 +240,12 @@ public class BillingService {
      * {@link BillResponse#getBreakdown()} — a participant should be able to
      * see what they personally owe without also seeing every other
      * participant's name and amount.
+     *
+     * A caller with no {@link LiveOrder} of their own in this room is not a
+     * participant and has no bill to see, so this is treated as an
+     * authorization failure (403 Forbidden) rather than a missing-resource
+     * (404): the room and its bill genuinely exist, the caller is simply not
+     * entitled to view them.
      */
     @Transactional(readOnly = true)
     public com.smartoffice.breakfast.dto.BillingDtos.MyBillResponse getMyBill(Long roomId, Long userId) {
@@ -238,7 +254,7 @@ public class BillingService {
         UserBillResponse mine = bill.getBreakdown().stream()
                 .filter(row -> row.getUserId().equals(userId))
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException(
+                .orElseThrow(() -> new AccessDeniedException(
                         "You don't have any orders in this room, so there is nothing to bill you for"));
 
         return com.smartoffice.breakfast.dto.BillingDtos.MyBillResponse.builder()

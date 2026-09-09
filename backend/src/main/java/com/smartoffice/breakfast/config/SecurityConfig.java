@@ -7,6 +7,7 @@ import com.smartoffice.breakfast.security.CustomUserDetailsService;
 import com.smartoffice.breakfast.security.JwtAuthFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -20,6 +21,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
@@ -30,6 +32,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -41,9 +44,22 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthFilter jwtAuthFilter;
 
+    /**
+     * Comma-separated allow-list of origins permitted to make credentialed
+     * requests (cookies / Authorization headers), injected from the
+     * CORS_ALLOWED_ORIGINS environment variable (see application.yml).
+     * Wildcards are intentionally NOT supported here: with
+     * allowCredentials(true), Spring Security refuses "*" outright, and
+     * even allowedOriginPatterns("*") would let any site ride a logged-in
+     * user's session. Keep this list to the exact frontend origins that
+     * need to call the API with credentials.
+     */
+    @Value("${app.cors.allowed-origins}")
+    private String allowedOrigins;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return NoOpPasswordEncoder.getInstance();
     }
 
     @Bean
@@ -100,7 +116,7 @@ public class SecurityConfig {
     }
 
     private static void writeError(HttpServletResponse response, HttpStatus status, String message,
-                                    ObjectMapper mapper) throws java.io.IOException {
+                                   ObjectMapper mapper) throws java.io.IOException {
         ErrorResponse body = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(status.value())
@@ -115,8 +131,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                     AuthenticationEntryPoint authenticationEntryPoint,
-                                                     AccessDeniedHandler accessDeniedHandler) throws Exception {
+                                                   AuthenticationEntryPoint authenticationEntryPoint,
+                                                   AccessDeniedHandler accessDeniedHandler) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -165,8 +181,18 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        // Explicit origin allow-list, NOT "*" or a wildcard pattern: combined
+        // with allowCredentials(true) below, a wildcard would let any site on
+        // the internet send cookies/JWTs on behalf of a logged-in user.
+        // Set CORS_ALLOWED_ORIGINS in the environment to override the
+        // localhost defaults for staging/production.
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

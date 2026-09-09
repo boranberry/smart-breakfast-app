@@ -2,6 +2,8 @@ package com.smartoffice.breakfast.dto;
 
 import com.smartoffice.breakfast.entity.RoomStatus;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,11 +17,17 @@ public class RoomDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CreateRoomRequest {
+        // Matches Room.restaurantName's column length (150); without this the
+        // request passed @Valid but then blew up as an uncaught
+        // DataException on save.
         @NotBlank(message = "Restaurant name is required")
+        @Size(max = 150, message = "Restaurant name must be at most 150 characters")
         private String restaurantName;
 
+        @Size(max = 20, message = "Restaurant phone must be at most 20 characters")
         private String restaurantPhone;
 
+        @Size(max = 500, message = "Description must be at most 500 characters")
         private String description;
 
         /**
@@ -27,6 +35,7 @@ public class RoomDtos {
          * name and phone are taken from that restaurant and the room starts
          * with its verified menu available.
          */
+        @Positive(message = "Restaurant id must be positive")
         private Long restaurantId;
     }
 

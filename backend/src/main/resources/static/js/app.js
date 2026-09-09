@@ -9,6 +9,33 @@ const toastEl = document.getElementById("toast");
 let activeTimers = []; // interval ids to clear between route renders
 
 /* ------------------------------------------------------------------ *
+ * Validation constants — kept in sync with the backend DTOs
+ * (AuthDtos, OrderDtos, RoomDtos, MenuItemDto, RestaurantAdminDtos) so a
+ * bad value is caught client-side with a helpful message instead of
+ * round-tripping to the server for a 400. The server remains the source
+ * of truth and re-validates everything regardless.
+ * ------------------------------------------------------------------ */
+const LIMITS = {
+  NAME_MIN: 2,
+  NAME_MAX: 100,
+  PHONE_MAX: 20,
+  // Matches AuthDtos.PHONE_PATTERN: optional '+', digits/spaces/dashes/
+  // parentheses, 7-20 characters total.
+  PHONE_PATTERN: "^[+]?[0-9][0-9\\s\\-()]{5,18}[0-9]$",
+  PASSWORD_MIN: 6,
+  PASSWORD_MAX: 72,
+  ITEM_NAME_MAX: 150,
+  RESTAURANT_NAME_MAX: 150,
+  RESTAURANT_PHONE_MAX: 20,
+  DESCRIPTION_MAX: 500,
+  PRICE_MAX: 100000,
+  QUANTITY_MIN: 1,
+  QUANTITY_MAX: 50,
+  DELIVERY_FEE_MAX: 10000,
+  RECEIPT_TOTAL_MAX: 1000000,
+};
+
+/* ------------------------------------------------------------------ *
  * Small helpers
  * ------------------------------------------------------------------ */
 
@@ -60,6 +87,20 @@ function formatCountdown(totalSeconds) {
   const m = Math.floor(s / 60);
   const r = s % 60;
   return String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0");
+}
+
+/**
+ * Renders a backend LocalDateTime (e.g. "2026-09-09T14:23:00") as a short,
+ * locale-aware date + time for display on room cards. Falls back to the raw
+ * value if it can't be parsed, so a bad date never blanks out the card.
+ */
+function formatDate(isoString) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return isoString;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) +
+      " · " +
+      d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
 function toast(message, isError) {
@@ -199,11 +240,11 @@ function renderAuthView() {
         <form id="login-form" class="auth-form">
           <div class="field">
             <label for="login-phone">Phone number</label>
-            <input id="login-phone" name="phone" type="tel" autocomplete="tel" required />
+            <input id="login-phone" name="phone" type="tel" autocomplete="tel" maxlength="20" required />
           </div>
           <div class="field">
             <label for="login-password">Password</label>
-            <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+            <input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="72" required />
           </div>
           <div class="error-text" id="login-error" style="display:none"></div>
           <button class="btn btn-primary btn-block" type="submit">Log in</button>
@@ -212,15 +253,20 @@ function renderAuthView() {
         <form id="signup-form" class="auth-form" style="display:none">
           <div class="field">
             <label for="signup-name">Full name</label>
-            <input id="signup-name" name="name" type="text" autocomplete="name" required />
+            <input id="signup-name" name="name" type="text" autocomplete="name"
+                   minlength="${LIMITS.NAME_MIN}" maxlength="${LIMITS.NAME_MAX}" required />
           </div>
           <div class="field">
             <label for="signup-phone">Phone number</label>
-            <input id="signup-phone" name="phone" type="tel" autocomplete="tel" required />
+            <input id="signup-phone" name="phone" type="tel" autocomplete="tel"
+                   maxlength="${LIMITS.PHONE_MAX}" pattern="${LIMITS.PHONE_PATTERN}"
+                   title="Digits only, 7-20 characters (spaces, dashes and parentheses allowed)" required />
           </div>
           <div class="field">
             <label for="signup-password">Password</label>
-            <input id="signup-password" name="password" type="password" minlength="6" autocomplete="new-password" required />
+            <input id="signup-password" name="password" type="password"
+                   minlength="${LIMITS.PASSWORD_MIN}" maxlength="${LIMITS.PASSWORD_MAX}"
+                   autocomplete="new-password" required />
             <div class="hint">At least 6 characters.</div>
           </div>
           <div class="error-text" id="signup-error" style="display:none"></div>
@@ -586,11 +632,11 @@ function renderNewRestaurantPanel() {
     <form id="new-restaurant-form">
       <div class="field">
         <label for="nr-name">Restaurant name</label>
-        <input id="nr-name" name="name" type="text" required />
+        <input id="nr-name" name="name" type="text" maxlength="${LIMITS.RESTAURANT_NAME_MAX}" required />
       </div>
       <div class="field">
         <label for="nr-phone">Phone (optional)</label>
-        <input id="nr-phone" name="phone" type="tel" />
+        <input id="nr-phone" name="phone" type="tel" maxlength="${LIMITS.RESTAURANT_PHONE_MAX}" />
       </div>
       <div class="hint" style="margin-bottom:10px">Starting menu — at least one item.</div>
       <div id="nr-menu-rows"></div>
@@ -607,8 +653,8 @@ function renderNewRestaurantPanel() {
     row.style.display = "flex";
     row.style.gap = "8px";
     row.innerHTML = `
-      <input type="text" placeholder="Item name" class="nr-item-name" style="flex:2" required />
-      <input type="number" step="0.01" min="0" placeholder="Price" class="nr-item-price" style="flex:1" required />
+      <input type="text" placeholder="Item name" class="nr-item-name" style="flex:2" maxlength="${LIMITS.ITEM_NAME_MAX}" required />
+      <input type="number" step="0.01" min="0" max="${LIMITS.PRICE_MAX}" placeholder="Price" class="nr-item-price" style="flex:1" required />
     `;
     rowsEl.appendChild(row);
   }
@@ -667,7 +713,7 @@ async function renderRestaurantDetailPanel(restaurantId) {
     <div class="field" style="margin-top:10px">
       <label for="rd-phone">Phone</label>
       <div style="display:flex;gap:8px">
-        <input id="rd-phone" type="tel" value="${escapeHtml(restaurant.phone || "")}" style="flex:1" />
+        <input id="rd-phone" type="tel" maxlength="${LIMITS.RESTAURANT_PHONE_MAX}" value="${escapeHtml(restaurant.phone || "")}" style="flex:1" />
         <button class="btn btn-outline btn-sm" id="rd-save-phone">Save</button>
       </div>
     </div>
@@ -681,7 +727,7 @@ async function renderRestaurantDetailPanel(restaurantId) {
                   (m) => `
         <div class="field" style="display:flex;gap:8px;align-items:center" data-item-id="${m.id}">
           <span style="flex:2">${escapeHtml(m.name)}</span>
-          <input type="number" step="0.01" min="0" class="rd-price-input" value="${m.verifiedPrice}" style="flex:1" />
+          <input type="number" step="0.01" min="0" max="${LIMITS.PRICE_MAX}" class="rd-price-input" value="${m.verifiedPrice}" style="flex:1" />
           <button class="btn btn-outline btn-sm rd-save-item">Save</button>
           <button class="btn btn-danger btn-sm rd-delete-item">Delete</button>
         </div>`
@@ -691,8 +737,8 @@ async function renderRestaurantDetailPanel(restaurantId) {
     </div>
     <div class="section-title" style="margin-top:16px">Add item</div>
     <div class="field" style="display:flex;gap:8px">
-      <input type="text" id="rd-new-name" placeholder="Item name" style="flex:2" />
-      <input type="number" step="0.01" min="0" id="rd-new-price" placeholder="Price" style="flex:1" />
+      <input type="text" id="rd-new-name" placeholder="Item name" maxlength="${LIMITS.ITEM_NAME_MAX}" style="flex:2" />
+      <input type="number" step="0.01" min="0" max="${LIMITS.PRICE_MAX}" id="rd-new-price" placeholder="Price" style="flex:1" />
       <button class="btn btn-primary btn-sm" id="rd-add-item">Add</button>
     </div>
     <div class="error-text" id="rd-error" style="display:none"></div>
@@ -786,6 +832,7 @@ function roomCardHtml(room) {
         </div>
         <span class="badge ${badgeClass}">${escapeHtml(meta.label)}</span>
       </div>
+      <div class="ticket-sub">📅 Created ${formatDate(room.createdAt)}</div>
       ${room.description ? `<div class="ticket-sub">${escapeHtml(room.description)}</div>` : ""}
       ${menuNote ? `<div class="ticket-sub">🧾 ${menuNote}</div>` : ""}
       <div class="ticket-timer ${urgent ? "urgent" : ""}" data-timer data-remaining="${room.secondsRemaining}">
@@ -939,15 +986,15 @@ function openCreateRoomModal() {
     <form id="create-room-form">
       <div class="field">
         <label for="room-restaurant">Restaurant name</label>
-        <input id="room-restaurant" name="restaurantName" type="text" required />
+        <input id="room-restaurant" name="restaurantName" type="text" maxlength="${LIMITS.RESTAURANT_NAME_MAX}" required />
       </div>
       <div class="field">
         <label for="room-phone">Restaurant phone</label>
-        <input id="room-phone" name="restaurantPhone" type="tel" />
+        <input id="room-phone" name="restaurantPhone" type="tel" maxlength="${LIMITS.RESTAURANT_PHONE_MAX}" />
       </div>
       <div class="field">
         <label for="room-desc">Description (optional)</label>
-        <input id="room-desc" name="description" type="text" placeholder="e.g. delivery closes at 10am" />
+        <input id="room-desc" name="description" type="text" maxlength="${LIMITS.DESCRIPTION_MAX}" placeholder="e.g. delivery closes at 10am" />
       </div>
       <div class="hint" style="margin-bottom:14px">Rooms stay open for 60 minutes, then close automatically.</div>
       <div class="error-text" id="create-room-error" style="display:none"></div>
@@ -1044,16 +1091,29 @@ async function renderRoomView(roomId) {
         <span class="mono timer-value">${isOpen ? formatCountdown(room.secondsRemaining) : meta.label.toLowerCase()}</span>
         <span>${isOpen ? "until this room closes" : roomStateHint(room)}</span>
       </div>
-      ${
-      session.role === "ADMIN"
-          ? `<div class="ticket-actions">
-               <button class="btn btn-outline btn-sm" id="view-summary-btn">
-                 ${room.status === "PENDING_ADMIN_APPROVAL" ? "Review &amp; approve" : "View summary"}
-               </button>
-               ${isOpen ? `<button class="btn btn-danger btn-sm" id="close-room-btn">Close room now</button>` : ""}
-             </div>`
-          : ""
-  }
+      ${(() => {
+    // Once the room leaves OPEN (CLOSED, PENDING_ADMIN_APPROVAL, or
+    // APPROVED_AND_CLOSED - i.e. the receipt/admin-approval workflow has
+    // started or finished) every participant, not just the admin, gets a
+    // clear way back to their bill: "My rooms & bills" on the Account
+    // screen. This re-renders automatically the next time this view loads
+    // (e.g. right after the admin closes the room, or after the in-room
+    // countdown hits zero and re-renders itself - see the timer below), so
+    // the button appears the moment the status actually changes.
+    const actions = [];
+    if (session.role === "ADMIN") {
+      actions.push(`<button class="btn btn-outline btn-sm" id="view-summary-btn">
+               ${room.status === "PENDING_ADMIN_APPROVAL" ? "Review &amp; approve" : "View summary"}
+             </button>`);
+      if (isOpen) {
+        actions.push(`<button class="btn btn-danger btn-sm" id="close-room-btn">Close room now</button>`);
+      }
+    }
+    if (!isOpen) {
+      actions.push(`<button class="btn btn-outline btn-sm" id="my-bills-btn">My rooms &amp; bills</button>`);
+    }
+    return actions.length ? `<div class="ticket-actions">${actions.join("")}</div>` : "";
+  })()}
     </div>
 
     <div class="view-tabs" role="tablist">
@@ -1079,6 +1139,7 @@ async function renderRoomView(roomId) {
       toast(err.message, true);
     }
   });
+  document.getElementById("my-bills-btn")?.addEventListener("click", () => navigate("#/account"));
 
   document.querySelectorAll("[data-view-tab]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1153,19 +1214,20 @@ function renderMenuTab(roomId, isOpen, menu) {
       <form id="add-item-form">
         <div class="field">
           <label for="item-name">Item</label>
-          <input id="item-name" name="itemName" type="text" placeholder="e.g. Cheese Manakish" required ${
+          <input id="item-name" name="itemName" type="text" placeholder="e.g. Cheese Manakish"
+                 maxlength="${LIMITS.ITEM_NAME_MAX}" required ${
       isOpen ? "" : "disabled"
   } />
         </div>
         <div class="field-row">
           <div class="field">
             <label for="item-price">Price <span class="hint">(optional)</span></label>
-            <input id="item-price" name="price" type="number" min="0" step="0.25"
+            <input id="item-price" name="price" type="number" min="0" max="${LIMITS.PRICE_MAX}" step="0.25"
                    placeholder="don't know yet" ${isOpen ? "" : "disabled"} />
           </div>
           <div class="field" style="max-width:110px">
             <label for="item-qty">Qty</label>
-            <input id="item-qty" name="quantity" type="number" min="1" step="1" value="1" required ${
+            <input id="item-qty" name="quantity" type="number" min="${LIMITS.QUANTITY_MIN}" max="${LIMITS.QUANTITY_MAX}" step="1" value="1" required ${
       isOpen ? "" : "disabled"
   } />
           </div>
@@ -1506,7 +1568,7 @@ function receiptItemRowsHtml(summary, priceOf) {
                 : `<span class="hint" style="margin-left:6px;color:var(--butter-500)">(new item — enter price)</span>`
         }
         </label>
-        <input id="rprice-${i}" type="number" min="0" step="0.25" required
+        <input id="rprice-${i}" type="number" min="0" max="${LIMITS.PRICE_MAX}" step="0.25" required
                class="receipt-price-input"
                data-item-name="${escapeHtml(item.itemName)}"
                value="${value === "" ? "" : value}"
@@ -1591,7 +1653,7 @@ function renderReceiptEntryForm(roomId, room, summary, savedMenu) {
 
         <div class="field" style="margin-top:14px">
           <label for="receipt-delivery">Total delivery fee</label>
-          <input id="receipt-delivery" name="totalDelivery" type="number" min="0" step="0.25" required
+          <input id="receipt-delivery" name="totalDelivery" type="number" min="0" max="${LIMITS.DELIVERY_FEE_MAX}" step="0.25" required
                  value="${room.totalDeliveryFee == null ? "" : room.totalDeliveryFee}" />
           <div class="hint">Split evenly across ${summary.participantCount} participant${
       summary.participantCount === 1 ? "" : "s"
@@ -1600,7 +1662,7 @@ function renderReceiptEntryForm(roomId, room, summary, savedMenu) {
 
         <div class="field">
           <label for="receipt-total">Receipt grand total <span class="hint">(optional)</span></label>
-          <input id="receipt-total" name="receiptTotal" type="number" min="0" step="0.25"
+          <input id="receipt-total" name="receiptTotal" type="number" min="0" max="${LIMITS.RECEIPT_TOTAL_MAX}" step="0.25"
                  placeholder="to cross-check" />
           <div class="hint">If you enter it, we'll flag any mismatch before you approve.</div>
         </div>
@@ -1688,7 +1750,7 @@ async function renderApprovalPanel(roomId, room, summary) {
 
         <div class="field" style="margin-top:14px">
           <label for="approve-delivery">Total delivery fee</label>
-          <input id="approve-delivery" name="totalDelivery" type="number" min="0" step="0.25" required
+          <input id="approve-delivery" name="totalDelivery" type="number" min="0" max="${LIMITS.DELIVERY_FEE_MAX}" step="0.25" required
                  value="${room.totalDeliveryFee == null ? "" : room.totalDeliveryFee}" />
         </div>
 
@@ -1853,8 +1915,15 @@ function renderApprovalResult(roomId, result) {
       </div>
     </div>
 
-    <button class="btn btn-outline btn-block" id="back-to-dashboard">Back to rooms</button>
+    <button class="btn btn-primary btn-block" id="go-to-my-bills" style="margin-top:14px">
+      My rooms &amp; bills
+    </button>
+    <button class="btn btn-outline btn-block" id="back-to-dashboard" style="margin-top:10px">Back to rooms</button>
   `;
 
+  // The room just moved to APPROVED_AND_CLOSED - point straight at the
+  // Account screen's "My rooms & bills" list, where every participant
+  // (including this admin, if they ordered too) can see the final split.
+  document.getElementById("go-to-my-bills").addEventListener("click", () => navigate("#/account"));
   document.getElementById("back-to-dashboard").addEventListener("click", () => navigate("#/dashboard"));
 }

@@ -76,13 +76,21 @@ public class BillingController {
      * preview stage, not just after final APPROVED_AND_CLOSED approval — so
      * the amount appears the moment the admin enters the receipt, not only
      * after they approve it.
+     *
+     * This is the "/billing/me" endpoint from a caller's point of view: a
+     * caller who has no {@link com.smartoffice.breakfast.entity.LiveOrder}
+     * of their own in this room is not a participant, so
+     * {@link com.smartoffice.breakfast.service.BillingService#getMyBill}
+     * refuses them with 403 Forbidden rather than a 404 - the room and its
+     * bill exist, they're just not entitled to see it.
      */
     @GetMapping("/{roomId}/bill/me")
     @Operation(summary = "Get my split for a room", description = "Retrieves the authenticated user's own food subtotal, delivery share, and final total for a room. Available to any participant, not admin-only.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Bill retrieved successfully"),
             @ApiResponse(responseCode = "400", description = "Room has no orders yet"),
-            @ApiResponse(responseCode = "404", description = "Room not found, or you have no orders in this room")
+            @ApiResponse(responseCode = "403", description = "You have no orders in this room, so there is nothing to bill you for"),
+            @ApiResponse(responseCode = "404", description = "Room not found")
     })
     public ResponseEntity<MyBillResponse> getMyBill(@Parameter(description = "Room ID") @PathVariable Long roomId,
                                                      @AuthenticationPrincipal UserPrincipal principal) {

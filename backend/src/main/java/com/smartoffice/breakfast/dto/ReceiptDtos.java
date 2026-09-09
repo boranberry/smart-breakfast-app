@@ -3,9 +3,11 @@ package com.smartoffice.breakfast.dto;
 import com.smartoffice.breakfast.dto.BillingDtos.BillResponse;
 import com.smartoffice.breakfast.entity.RoomStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,15 +29,18 @@ public class ReceiptDtos {
     public static class ReceiptEntryRequest {
 
         @NotEmpty(message = "At least one receipt item is required")
+        @Size(max = 200, message = "At most 200 receipt items per request")
         @Valid
         private List<MenuItemDto> items;
 
         @NotNull(message = "Total delivery fee is required")
         @PositiveOrZero(message = "Delivery fee cannot be negative")
+        @DecimalMax(value = "10000", message = "Delivery fee is unrealistically high")
         private Double totalDelivery;
 
         /** Grand total printed on the receipt, used only for reconciliation. */
         @PositiveOrZero(message = "Receipt total cannot be negative")
+        @DecimalMax(value = "1000000", message = "Receipt total is unrealistically high")
         private Double receiptTotal;
     }
 

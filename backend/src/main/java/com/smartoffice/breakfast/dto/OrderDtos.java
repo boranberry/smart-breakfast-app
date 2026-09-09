@@ -1,8 +1,11 @@
 package com.smartoffice.breakfast.dto;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,7 +19,11 @@ public class OrderDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AddOrderRequest {
+        // Matches LiveOrder.itemName's column length (150); without this a
+        // long item name passed @Valid but then failed as an uncaught
+        // DataException on save.
         @NotBlank(message = "Item name is required")
+        @Size(max = 150, message = "Item name must be at most 150 characters")
         private String itemName;
 
         /**
@@ -25,9 +32,11 @@ public class OrderDtos {
          * up on the bill is transcribed from the paper receipt after delivery.
          */
         @PositiveOrZero(message = "Price cannot be negative")
+        @DecimalMax(value = "100000", message = "Price is unrealistically high")
         private Double price;
 
         @Positive(message = "Quantity must be at least 1")
+        @Max(value = 50, message = "Quantity cannot exceed 50")
         private Integer quantity = 1;
     }
 

@@ -63,6 +63,13 @@ public class UserAdminService {
      * Reverts a user to a regular USER. An admin cannot demote their own
      * account this way, so a lone admin can never accidentally lock
      * themselves out of the admin-only screens.
+     *
+     * On top of the self-demote guard, this also refuses to demote the last
+     * remaining ADMIN in the system, even when acted on by a *different*
+     * admin (e.g. two admins demoting each other in quick succession, or a
+     * client that bypasses the "self" check by calling with a stale/forged
+     * id). Without this, the system could end up with zero admins and every
+     * {@code /api/admin/**} screen would become permanently unreachable.
      */
     @Transactional
     public UserResponse demoteToUser(Long userId, Long actingAdminId) {
@@ -73,7 +80,12 @@ public class UserAdminService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        if (user.getRole() != Role.USER) {
+        if (user.getRole() == Role.ADMIN) {
+            long adminCount = userRepository.countByRole(Role.ADMIN);
+            if (adminCount <= 1) {
+                throw new BadRequestException(
+                        "Cannot demote the last remaining admin. Promote another user to admin first.");
+            }
             user.setRole(Role.USER);
             user = userRepository.save(user);
         }

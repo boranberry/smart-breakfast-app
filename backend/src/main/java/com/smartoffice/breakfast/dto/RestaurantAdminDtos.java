@@ -1,8 +1,12 @@
 package com.smartoffice.breakfast.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,9 +26,11 @@ public class RestaurantAdminDtos {
     public static class CreateRestaurantWithMenuRequest {
 
         @NotBlank(message = "Restaurant name is required")
+        @Size(max = 150, message = "Restaurant name must be at most 150 characters")
         private String name;
 
         /** Optional, same as the free-text phone captured when opening a room. */
+        @Size(max = 20, message = "Phone must be at most 20 characters")
         private String phone;
 
         /**
@@ -33,6 +39,7 @@ public class RestaurantAdminDtos {
          * ignored if the caller sends them.
          */
         @NotEmpty(message = "At least one menu item is required")
+        @Size(max = 200, message = "At most 200 menu items per request")
         @Valid
         private List<MenuItemDto> menu;
     }
@@ -46,7 +53,13 @@ public class RestaurantAdminDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UpdateRestaurantRequest {
+        // Both fields are optional (a caller can patch just one), so no
+        // @NotBlank — but an over-length value must still be rejected with a
+        // clean 400 rather than surfacing as a DataException on save.
+        @Size(max = 150, message = "Restaurant name must be at most 150 characters")
         private String name;
+
+        @Size(max = 20, message = "Phone must be at most 20 characters")
         private String phone;
     }
 
@@ -61,11 +74,13 @@ public class RestaurantAdminDtos {
     @AllArgsConstructor
     public static class UpsertMenuItemRequest {
 
-        @jakarta.validation.constraints.NotBlank(message = "Item name is required")
+        @NotBlank(message = "Item name is required")
+        @Size(max = 150, message = "Item name must be at most 150 characters")
         private String name;
 
-        @jakarta.validation.constraints.NotNull(message = "Price is required")
-        @jakarta.validation.constraints.PositiveOrZero(message = "Price cannot be negative")
+        @NotNull(message = "Price is required")
+        @PositiveOrZero(message = "Price cannot be negative")
+        @DecimalMax(value = "100000", message = "Price is unrealistically high")
         private Double price;
     }
 }
